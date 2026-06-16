@@ -5,17 +5,13 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$connection = mysqli_connect('127.0.0.1', 'root', '', 'MySite');
-if (!$connection) {
-    die('Ошибка подключения к базе данных');
-}
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 
 $project_id = intval($_GET['id']);
 $user_id = $_SESSION['user_id'];
 
-// Проверяем, принадлежит ли проект пользователю
 $check = mysqli_query($connection, "SELECT * FROM projects WHERE id = '$project_id' AND user_id = '$user_id'");
-
 if (mysqli_num_rows($check) == 0) {
     header('Location: cabinet.php?error=not_found');
     exit();
@@ -23,21 +19,22 @@ if (mysqli_num_rows($check) == 0) {
 
 $project = mysqli_fetch_assoc($check);
 
-// Удаляем файлы проекта, если они есть
-if (!empty($project['original_file_path']) && file_exists($project['original_file_path'])) {
-    unlink($project['original_file_path']);
+// Удаляем файлы по абсолютным путям
+if (!empty($project['original_file_path'])) {
+    $abs_path = getUploadsPath() . $project['original_file_path'];
+    if (file_exists($abs_path)) unlink($abs_path);
 }
-if (!empty($project['edited_file_path']) && file_exists($project['edited_file_path'])) {
-    unlink($project['edited_file_path']);
-}
-
-// Удаляем папку проекта, если она пустая
-$project_dir = dirname($project['original_file_path']);
-if (is_dir($project_dir)) {
-    @rmdir($project_dir); // удалит только пустую папку
+if (!empty($project['edited_file_path'])) {
+    $abs_path = getUploadsPath() . $project['edited_file_path'];
+    if (file_exists($abs_path)) unlink($abs_path);
 }
 
-// Удаляем запись из базы данных
+// Удаляем папку проекта (если пуста)
+if (!empty($project['original_file_path'])) {
+    $dir = dirname(getUploadsPath() . $project['original_file_path']);
+    if (is_dir($dir)) @rmdir($dir);
+}
+
 mysqli_query($connection, "DELETE FROM projects WHERE id = '$project_id' AND user_id = '$user_id'");
 
 header('Location: cabinet.php?deleted=1');

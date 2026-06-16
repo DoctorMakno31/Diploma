@@ -5,10 +5,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$connection = mysqli_connect('127.0.0.1', 'root', '', 'MySite');
-if (!$connection) {
-    die('ERROR: ' . mysqli_connect_error());
-}
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 
 $project_id = intval($_GET['id']);
 $user_id = $_SESSION['user_id'];
@@ -16,12 +14,11 @@ $user_id = $_SESSION['user_id'];
 $project_result = mysqli_query($connection, "SELECT * FROM projects WHERE id = '$project_id' AND user_id = '$user_id'");
 $project = mysqli_fetch_assoc($project_result);
 
-if (!$project || !$project['original_file_path'] || !file_exists($project['original_file_path'])) {
+if (!$project || !$project['original_file_path'] || !file_exists(getUploadsPath() . $project['original_file_path'])) {
     header('Location: cabinet.php');
     exit();
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -29,22 +26,14 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Редактирование аудио - <?php echo htmlspecialchars($project['name']); ?></title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             min-height: 100vh;
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .header {
             background: rgba(0,0,0,0.3);
             padding: 20px;
@@ -63,9 +52,7 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             padding: 20px;
             backdrop-filter: blur(10px);
         }
-        .control-group {
-            margin-bottom: 25px;
-        }
+        .control-group { margin-bottom: 25px; }
         .control-group label {
             display: block;
             margin-bottom: 10px;
@@ -79,9 +66,7 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             border-radius: 3px;
             -webkit-appearance: none;
         }
-        input[type="range"]:focus {
-            outline: none;
-        }
+        input[type="range"]:focus { outline: none; }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 20px;
@@ -112,21 +97,11 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             transition: transform 0.2s, background 0.2s;
             margin: 5px;
         }
-        .btn-primary {
-            background: #2196F3;
-        }
-        .btn-save {
-            background: #FF9800;
-        }
-        .btn-exit {
-            background: #4CAF50;
-        }
-        .btn-apply {
-            background: #9C27B0;
-        }
-        .btn-apply:hover {
-            background: #7B1FA2;
-        }
+        .btn-primary { background: #2196F3; }
+        .btn-save { background: #FF9800; }
+        .btn-exit { background: #4CAF50; }
+        .btn-apply { background: #9C27B0; }
+        .btn-apply:hover { background: #7B1FA2; }
         .playback-controls {
             display: flex;
             justify-content: center;
@@ -168,9 +143,7 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             gap: 20px;
             margin-top: 10px;
         }
-        .trim-sliders div {
-            flex: 1;
-        }
+        .trim-sliders div { flex: 1; }
         .time-display {
             font-family: monospace;
             font-size: 14px;
@@ -192,22 +165,10 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             margin-bottom: 20px;
             display: none;
         }
-        .status-success {
-            background: #4CAF50;
-            display: block;
-        }
-        .status-error {
-            background: #f44336;
-            display: block;
-        }
-        .status-info {
-            background: #2196F3;
-            display: block;
-        }
-        h3 {
-            margin-bottom: 15px;
-            color: #4CAF50;
-        }
+        .status-success { background: #4CAF50; display: block; }
+        .status-error { background: #f44336; display: block; }
+        .status-info { background: #2196F3; display: block; }
+        h3 { margin-bottom: 15px; color: #4CAF50; }
         .current-time {
             font-size: 14px;
             text-align: center;
@@ -269,58 +230,26 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
 
             <div class="controls-section">
                 <h3>🎛️ Аудиоэффекты</h3>
-                
                 <div class="control-group">
-                    <label>
-                        🔊 Громкость
-                        <span class="value-display" id="volumeValue">0 dB</span>
-                    </label>
-                    <input type="range" id="volumeGain" 
-                           min="-30" max="20" step="1" value="0">
+                    <label>🔊 Громкость <span class="value-display" id="volumeValue">0 dB</span></label>
+                    <input type="range" id="volumeGain" min="-30" max="20" step="1" value="0">
                 </div>
-
                 <div class="control-group">
-                    <label>
-                        🎚️ Эквалайзер - Низкие (Bass)
-                        <span class="value-display" id="bassValue">0 dB</span>
-                    </label>
-                    <input type="range" id="bassEQ" 
-                           min="-20" max="20" step="1" value="0">
+                    <label>🎚️ Эквалайзер - Низкие (Bass) <span class="value-display" id="bassValue">0 dB</span></label>
+                    <input type="range" id="bassEQ" min="-20" max="20" step="1" value="0">
                 </div>
-
                 <div class="control-group">
-                    <label>
-                        🎚️ Эквалайзер - Средние (Mid)
-                        <span class="value-display" id="midValue">0 dB</span>
-                    </label>
-                    <input type="range" id="midEQ" 
-                           min="-20" max="20" step="1" value="0">
+                    <label>🎚️ Эквалайзер - Средние (Mid) <span class="value-display" id="midValue">0 dB</span></label>
+                    <input type="range" id="midEQ" min="-20" max="20" step="1" value="0">
                 </div>
-
                 <div class="control-group">
-                    <label>
-                        🎚️ Эквалайзер - Высокие (Treble)
-                        <span class="value-display" id="trebleValue">0 dB</span>
-                    </label>
-                    <input type="range" id="trebleEQ" 
-                           min="-20" max="20" step="1" value="0">
+                    <label>🎚️ Эквалайзер - Высокие (Treble) <span class="value-display" id="trebleValue">0 dB</span></label>
+                    <input type="range" id="trebleEQ" min="-20" max="20" step="1" value="0">
                 </div>
-
-                <button class="btn btn-apply" id="applyEffectsBtn" style="width: 100%; margin-top: 10px;">
-                    ✨ Применить эффекты к фрагменту
-                </button>
-
-                <button class="btn btn-primary" id="resetEffectsBtn" style="width: 100%; margin-top: 10px;">
-                    🔄 Сбросить все эффекты
-                </button>
-                
-                <button class="btn btn-save" id="saveBtn" style="width: 100%; margin-top: 10px;">
-                    💾 Скачать обработанный WAV
-                </button>
-
-                <button class="btn btn-exit" id="saveExitBtn" style="width: 100%; margin-top: 10px;">
-                    💾 Сохранить и вернуться
-                </button>
+                <button class="btn btn-apply" id="applyEffectsBtn" style="width: 100%; margin-top: 10px;">✨ Применить эффекты к фрагменту</button>
+                <button class="btn btn-primary" id="resetEffectsBtn" style="width: 100%; margin-top: 10px;">🔄 Сбросить все эффекты</button>
+                <button class="btn btn-save" id="saveBtn" style="width: 100%; margin-top: 10px;">💾 Скачать обработанный WAV</button>
+                <button class="btn btn-exit" id="saveExitBtn" style="width: 100%; margin-top: 10px;">💾 Сохранить и вернуться</button>
             </div>
         </div>
     </div>
@@ -476,7 +405,6 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             isPlaying = true;
             playPauseBtn.textContent = '⏸️ Пауза';
             
-            // Анимация линии и контроль конца фрагмента
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             let startTime = audioContext.currentTime;
             let startPos = currentPlaybackTime;
@@ -589,16 +517,10 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
                 for (let i = 0; i < totalSamples; i++) finalData[i] = resultData[i];
                 
                 audioBuffer = finalBuffer;
-                
                 drawWaveform();
-                
-                if (isPlaying) {
-                    stopAudio();
-                }
-                
+                if (isPlaying) stopAudio();
                 currentPlaybackTime = startSec;
                 updatePlaybackLine();
-                
                 showStatus('Эффекты применены к фрагменту!', 'success');
             } catch (error) {
                 console.error(error);
@@ -611,9 +533,7 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             audioBuffer = originalBuffer;
             drawWaveform();
             showStatus('Эффекты сброшены, оригинальный трек восстановлен', 'success');
-            if (isPlaying) {
-                stopAudio();
-            }
+            if (isPlaying) stopAudio();
             currentPlaybackTime = (startPercent / 100) * duration;
             updatePlaybackLine();
         }
@@ -659,7 +579,6 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
         async function saveProcessedAudio() {
             if (!audioBuffer) { alert('Аудио не загружено'); return; }
             showStatus('Сохранение аудио...', 'info');
-            
             const wavBlob = bufferToWav(audioBuffer);
             const url = URL.createObjectURL(wavBlob);
             const a = document.createElement('a');
@@ -675,12 +594,10 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
         async function saveAndExit() {
             if (!audioBuffer) { alert('Аудио не загружено'); return; }
             showStatus('Сохранение...', 'info');
-            
             const wavBlob = bufferToWav(audioBuffer);
             const formData = new FormData();
             formData.append('saved_audio', wavBlob);
             formData.append('project_id', <?php echo $project_id; ?>);
-            
             await fetch('save_audio.php', { method: 'POST', body: formData });
             window.location.href = 'cabinet.php';
         }
@@ -695,6 +612,7 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
         
         async function initAudio() {
             showStatus('Загрузка аудио...', 'info');
+            // используем относительный путь, который уже хранится в БД
             const response = await fetch('<?php echo $project['original_file_path']; ?>');
             const arrayBuffer = await response.arrayBuffer();
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -754,11 +672,8 @@ if (!$project || !$project['original_file_path'] || !file_exists($project['origi
             } else {
                 currentPlaybackTime = time;
             }
-            
             updatePlaybackLine();
-            
             if (isPlaying && currentSourceNode) {
-                // Перезапускаем с новой позиции
                 playAudio();
             }
         });

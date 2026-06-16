@@ -1,14 +1,8 @@
 <?php
 session_start();
-$connection = mysqli_connect('127.0.0.1', 'root', '','MySite');
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 
-if( $connection == false )
-{
-echo 'ERROR!<br>';
-exit();
-}
-
-$id = mysqli_real_escape_string($connection, $_POST['Id']);
 $name = mysqli_real_escape_string($connection, $_POST['Login']);
 $password = mysqli_real_escape_string($connection, $_POST['Password']);
 
@@ -18,30 +12,24 @@ if(isset($_POST['Login'])) {
     $_SESSION['last_login'] = $_POST['Login'];
 }
 
-if(isset($_POST['autorisation']))
-{
-$check_user = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name'");
-
-if (mysqli_num_rows($check_user) > 0) {
-  
-    $result = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name' AND `password` = '$password'");
-    
-    if (mysqli_num_rows($result) > 0) {
-        
-        $user = mysqli_fetch_assoc($result);
-        $_SESSION['user_id'] = $user['id'];        
-        $_SESSION['user_name'] = $user['login'];   
-        header('Location: cabinet.php');
-        exit();
+if(isset($_POST['autorisation'])) {
+    $check_user = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name'");
+    if (mysqli_num_rows($check_user) > 0) {
+        $result = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name' AND `password` = '$password'");
+        if (mysqli_num_rows($result) > 0) {
+            $user = mysqli_fetch_assoc($result);
+            $_SESSION['user_id'] = $user['id'];        
+            $_SESSION['user_name'] = $user['login'];   
+            header('Location: cabinet.php');
+            exit();
+        } else {
+            $error_message = 'Неверный пароль! <a href="adminstr.php">Назад</a>';
+        }
     } else {
-        $error_message = 'Неверный пароль! <a href="adminstr.php">Назад</a>';
+        $error_message = 'Пользователь не найден! <a href="registr.php">Зарегистрироваться</a>';
     }
-} else {
-    $error_message = 'Пользователь не найден! <a href="registr.php">Зарегистрироваться</a>';
-}
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -78,8 +66,7 @@ if (mysqli_num_rows($check_user) > 0) {
             color: white;
             text-decoration: underline;
         }
-        input[type="text"],
-        input[type="password"] {
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -110,7 +97,6 @@ if (mysqli_num_rows($check_user) > 0) {
             <?php echo $error_message; ?>
         </div>
         <?php endif; ?>
-        
         <form action="adminstr.php" method="POST">
             <input type="text" name="Login" placeholder="Your login">
             <input type="password" name="Password" placeholder="Your password">

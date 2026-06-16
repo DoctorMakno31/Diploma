@@ -5,14 +5,11 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$connection = mysqli_connect('127.0.0.1', 'root', '', 'MySite');
-if ($connection == false) {
-    echo 'ERROR!<br>';
-    exit();
-}
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 
 function ensureUserDirectories($user_id, $project_id = null) {
-    $base_upload_dir = 'uploads/users/' . $user_id . '/';
+    $base_upload_dir = getUploadsPath() . 'users/' . $user_id . '/';
     if (!file_exists($base_upload_dir)) {
         mkdir($base_upload_dir, 0777, true);
     }
@@ -25,7 +22,7 @@ function ensureUserDirectories($user_id, $project_id = null) {
         if (!file_exists($project_dir)) {
             mkdir($project_dir, 0777, true);
         }
-        return $project_dir;
+        return $project_dir; // абсолютный
     }
     return $projects_dir;
 }
@@ -43,7 +40,8 @@ if (isset($_POST['create_project'])) {
     
     if (mysqli_query($connection, $insert_query)) {
         $project_id = mysqli_insert_id($connection);
-        $project_dir = ensureUserDirectories($user_id, $project_id);
+        $project_dir_abs = ensureUserDirectories($user_id, $project_id);
+        $relative_base = 'uploads/users/' . $user_id . '/projects/' . $project_id . '/';
         
         if (isset($_FILES['audio_file']) && $_FILES['audio_file']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['audio_file'];
@@ -53,10 +51,11 @@ if (isset($_POST['create_project'])) {
             if (in_array($file_ext, $allowed_ext)) {
                 $safe_name = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($file['name'], PATHINFO_FILENAME));
                 $filename = 'original_' . time() . '_' . $safe_name . '.' . $file_ext;
-                $filepath = $project_dir . $filename;
+                $filepath_abs = $project_dir_abs . $filename;
+                $filepath_rel = $relative_base . $filename;
                 
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $filepath_escaped = mysqli_real_escape_string($connection, $filepath);
+                if (move_uploaded_file($file['tmp_name'], $filepath_abs)) {
+                    $filepath_escaped = mysqli_real_escape_string($connection, $filepath_rel);
                     $file_name_escaped = mysqli_real_escape_string($connection, $file['name']);
                     mysqli_query($connection, "UPDATE projects SET original_file_path = '$filepath_escaped', file_name = '$file_name_escaped', file_size = '{$file['size']}' WHERE id = '$project_id'");
                     header('Location: cabinet.php?success=1');
@@ -76,7 +75,6 @@ if (isset($_POST['create_project'])) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -84,22 +82,14 @@ if (isset($_POST['create_project'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Создать проект - AudioMix Pro</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             min-height: 100vh;
         }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .form-card {
             background: rgba(255,255,255,0.1);
             backdrop-filter: blur(10px);
@@ -108,21 +98,9 @@ if (isset($_POST['create_project'])) {
             border: 1px solid rgba(255,255,255,0.2);
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #4CAF50;
-            font-size: 28px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #ddd;
-        }
+        h1 { text-align: center; margin-bottom: 30px; color: #4CAF50; font-size: 28px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #ddd; }
         input, textarea {
             width: 100%;
             padding: 12px 15px;
@@ -192,27 +170,18 @@ if (isset($_POST['create_project'])) {
             margin-bottom: 20px;
             text-align: center;
         }
-        .file-hint {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 5px;
-        }
-        ::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
+        .file-hint { font-size: 12px; color: #aaa; margin-top: 5px; }
+        ::placeholder { color: rgba(255,255,255,0.5); }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="cabinet.php" class="btn-back">← Назад в личный кабинет</a>
-        
         <div class="form-card">
             <h1>🎵 Создать новый проект</h1>
-            
             <?php if ($error_message): ?>
                 <div class="error-message">❌ <?php echo $error_message; ?></div>
             <?php endif; ?>
-            
             <form method="POST" enctype="multipart/form-data">
                 <div class="form-group">
                     <label>📝 Название проекта</label>

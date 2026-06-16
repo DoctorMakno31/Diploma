@@ -1,41 +1,24 @@
 <?php
 session_start();
-if (!isset($_SESSION['count'])) {
-  $_SESSION['count'] = 0;
-} else {
-  $_SESSION['count']++;
-}
-$connection = mysqli_connect('127.0.0.1', 'root', '','MySite');
-
-
-if( $connection == false )
-{
-echo 'ERROR!<br>';
-exit();
-}
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 
 $login = $_POST['login'];
 $password = $_POST['password'];
 
-if(isset($_POST['registration']))
-{
-$check_user = mysqli_query($connection, "SELECT * FROM `Users` WHERE `Login` = '$login'");
-
-{
+if(isset($_POST['registration'])) {
+    $check_user = mysqli_query($connection, "SELECT * FROM `Users` WHERE `Login` = '$login'");
     if (mysqli_num_rows($check_user) > 0) {
-    $error_message = 'Такой пользователь уже существует! <a href="registr.php">Назад</a>';
+        $error_message = 'Такой пользователь уже существует! <a href="registr.php">Назад</a>';
     } else {
-    mysqli_query($connection, "INSERT INTO `Users`(Login, Password) VALUES ('$login', '$password')");
-    header('Location: goodjob.php');
-    exit();
+        mysqli_query($connection, "INSERT INTO `Users`(Login, Password) VALUES ('$login', '$password')");
+        header('Location: goodjob.php');
+        exit();
     }
 }
-}
 
-if (!isset($_SESSION['user_id']))
-{
+if (!isset($_SESSION['user_id'])) {
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,8 +55,7 @@ if (!isset($_SESSION['user_id']))
             color: white;
             text-decoration: underline;
         }
-        input[type="text"],
-        input[type="password"] {
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -104,7 +86,6 @@ if (!isset($_SESSION['user_id']))
             <?php echo $error_message; ?>
         </div>
         <?php endif; ?>
-        
         <form action="registr.php" method="POST">
             <input type="text" name="login" placeholder="Your login">
             <input type="password" name="password" placeholder="Your password">  
@@ -113,8 +94,8 @@ if (!isset($_SESSION['user_id']))
     </div>
 </body>
 </html>
-<? }
-else
-{
+<?php
+} else {
     echo "Вы уже авторизованы!";
-} ?>
+}
+?>

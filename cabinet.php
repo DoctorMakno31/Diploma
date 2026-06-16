@@ -5,20 +5,17 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$connection = mysqli_connect('127.0.0.1', 'root', '', 'MySite');
-if ($connection == false) {
-    echo 'ERROR!<br>';
-    exit();
-}
-
+require_once __DIR__ . '/config.php';
+$connection = getDBConnection();
 $user_id = $_SESSION['user_id'];
+
 $user_result = mysqli_query($connection, "SELECT * FROM users WHERE id = '$user_id'");
 $user = mysqli_fetch_assoc($user_result);
 
 $projects_result = mysqli_query($connection, "SELECT * FROM projects WHERE user_id = '$user_id' ORDER BY created_at DESC");
 
 function ensureUserDirectories($user_id, $project_id = null) {
-    $base_upload_dir = 'uploads/users/' . $user_id . '/';
+    $base_upload_dir = getUploadsPath() . 'users/' . $user_id . '/';
     if (!file_exists($base_upload_dir)) {
         mkdir($base_upload_dir, 0777, true);
     }
@@ -31,7 +28,7 @@ function ensureUserDirectories($user_id, $project_id = null) {
         if (!file_exists($project_dir)) {
             mkdir($project_dir, 0777, true);
         }
-        return $project_dir;
+        return $project_dir; // абсолютный путь для PHP
     }
     return $projects_dir;
 }
@@ -46,7 +43,8 @@ if (isset($_POST['upload_audio']) && isset($_FILES['audio_file'])) {
     $check_project = mysqli_query($connection, "SELECT * FROM projects WHERE id = '$project_id' AND user_id = '$user_id'");
     
     if (mysqli_num_rows($check_project) > 0) {
-        $project_dir = ensureUserDirectories($user_id, $project_id);
+        $project_dir_abs = ensureUserDirectories($user_id, $project_id);
+        $relative_base = 'uploads/users/' . $user_id . '/projects/' . $project_id . '/';
         $file = $_FILES['audio_file'];
         
         if ($file['error'] === UPLOAD_ERR_OK) {
@@ -56,10 +54,11 @@ if (isset($_POST['upload_audio']) && isset($_FILES['audio_file'])) {
             if (in_array($file_ext, $allowed_ext)) {
                 $safe_name = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($file['name'], PATHINFO_FILENAME));
                 $filename = 'original_' . time() . '_' . $safe_name . '.' . $file_ext;
-                $filepath = $project_dir . $filename;
+                $filepath_abs = $project_dir_abs . $filename;
+                $filepath_rel = $relative_base . $filename;
                 
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $filepath_escaped = mysqli_real_escape_string($connection, $filepath);
+                if (move_uploaded_file($file['tmp_name'], $filepath_abs)) {
+                    $filepath_escaped = mysqli_real_escape_string($connection, $filepath_rel);
                     $file_name_escaped = mysqli_real_escape_string($connection, $file['name']);
                     mysqli_query($connection, "UPDATE projects SET original_file_path = '$filepath_escaped', file_name = '$file_name_escaped', file_size = '{$file['size']}' WHERE id = '$project_id'");
                     header('Location: cabinet.php?success=1');
@@ -82,7 +81,6 @@ if (isset($_GET['success'])) {
     $success_message = 'Файл успешно загружен!';
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -90,11 +88,7 @@ if (isset($_GET['success'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мои проекты - AudioMix Pro</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
@@ -113,15 +107,8 @@ if (isset($_GET['success'])) {
             flex-wrap: wrap;
             gap: 15px;
         }
-        .logo-area h1 {
-            font-size: 24px;
-            color: #4CAF50;
-        }
-        .nav-area {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
+        .logo-area h1 { font-size: 24px; color: #4CAF50; }
+        .nav-area { display: flex; gap: 15px; flex-wrap: wrap; }
         .btn {
             display: inline-block;
             padding: 10px 20px;
@@ -134,23 +121,11 @@ if (isset($_GET['success'])) {
             cursor: pointer;
             font-size: 14px;
         }
-        .btn:hover {
-            background: #45a049;
-            transform: translateY(-2px);
-        }
-        .btn-danger {
-            background: #f44336;
-        }
-        .btn-danger:hover {
-            background: #da190b;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #4CAF50;
-        }
-        .btn-outline:hover {
-            background: #4CAF50;
-        }
+        .btn:hover { background: #45a049; transform: translateY(-2px); }
+        .btn-danger { background: #f44336; }
+        .btn-danger:hover { background: #da190b; }
+        .btn-outline { background: transparent; border: 1px solid #4CAF50; }
+        .btn-outline:hover { background: #4CAF50; }
         .projects-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -170,16 +145,8 @@ if (isset($_GET['success'])) {
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             background: rgba(255,255,255,0.15);
         }
-        .project-card h3 {
-            color: #4CAF50;
-            margin-bottom: 10px;
-            font-size: 20px;
-        }
-        .project-card p {
-            color: #ddd;
-            line-height: 1.4;
-            margin-bottom: 10px;
-        }
+        .project-card h3 { color: #4CAF50; margin-bottom: 10px; font-size: 20px; }
+        .project-card p { color: #ddd; line-height: 1.4; margin-bottom: 10px; }
         .file-info {
             background: rgba(0,0,0,0.3);
             padding: 12px;
@@ -211,34 +178,18 @@ if (isset($_GET['success'])) {
             color: #aaa;
             font-size: 12px;
         }
-        .project-actions {
-            margin-top: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        .btn-edit {
-            background: #2196F3;
-        }
-        .btn-download {
-            background: #FF9800;
-        }
+        .project-actions { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-edit { background: #2196F3; }
+        .btn-download { background: #FF9800; }
         .success-message, .error-message {
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
             text-align: center;
         }
-        .success-message {
-            background: #4CAF50;
-        }
-        .error-message {
-            background: #f44336;
-        }
+        .success-message { background: #4CAF50; }
+        .error-message { background: #f44336; }
         .greeting {
             background: rgba(0,0,0,0.2);
             padding: 10px 15px;
@@ -246,13 +197,8 @@ if (isset($_GET['success'])) {
             display: inline-block;
         }
         @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                text-align: center;
-            }
-            .projects-grid {
-                grid-template-columns: 1fr;
-            }
+            .header { flex-direction: column; text-align: center; }
+            .projects-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -273,7 +219,6 @@ if (isset($_GET['success'])) {
         <?php if ($success_message): ?>
             <div class="success-message">✅ <?php echo $success_message; ?></div>
         <?php endif; ?>
-        
         <?php if ($error_message): ?>
             <div class="error-message">❌ <?php echo $error_message; ?></div>
         <?php endif; ?>
@@ -284,7 +229,7 @@ if (isset($_GET['success'])) {
                 <h3><?php echo htmlspecialchars($project['name']); ?></h3>
                 <p><?php echo htmlspecialchars($project['description']); ?></p>
                 
-                <?php if (isset($project['original_file_path']) && $project['original_file_path'] && file_exists($project['original_file_path'])): ?>
+                <?php if (isset($project['original_file_path']) && $project['original_file_path'] && file_exists(getUploadsPath() . $project['original_file_path'])): ?>
                     <div class="file-info">
                         📁 <strong><?php echo htmlspecialchars($project['file_name']); ?></strong><br>
                         📏 Размер: <?php echo round($project['file_size'] / 1024 / 1024, 2); ?> MB<br>
@@ -293,7 +238,7 @@ if (isset($_GET['success'])) {
                     <div class="project-actions">
                         <a href="edit_audio.php?id=<?php echo $project['id']; ?>" class="btn btn-sm btn-edit">✏️ Редактировать</a>
                         <a href="download.php?type=original&id=<?php echo $project['id']; ?>" class="btn btn-sm btn-download">📥 Скачать оригинал</a>
-                        <?php if (isset($project['edited_file_path']) && $project['edited_file_path'] && file_exists($project['edited_file_path'])): ?>
+                        <?php if (isset($project['edited_file_path']) && $project['edited_file_path'] && file_exists(getUploadsPath() . $project['edited_file_path'])): ?>
                             <a href="download.php?type=edited&id=<?php echo $project['id']; ?>" class="btn btn-sm btn-download">💾 Скачать edited</a>
                         <?php endif; ?>
                         <a href="delete_project.php?id=<?php echo $project['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Удалить проект?')">🗑️ Удалить</a>
