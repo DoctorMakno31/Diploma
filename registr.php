@@ -10,11 +10,12 @@ if (isset($_POST['registration'])) {
         $login = mysqli_real_escape_string($connection, $_POST['login']);
         $password = mysqli_real_escape_string($connection, $_POST['password']);
         
-        $check_user = mysqli_query($connection, "SELECT * FROM `Users` WHERE `Login` = '$login'");
+        // ВНИМАНИЕ: исправлено users (строчные) вместо Users
+        $check_user = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$login'");
         if (mysqli_num_rows($check_user) > 0) {
             $error_message = 'Такой пользователь уже существует! <a href="registr.php">Назад</a>';
         } else {
-            mysqli_query($connection, "INSERT INTO `Users`(Login, Password) VALUES ('$login', '$password')");
+            mysqli_query($connection, "INSERT INTO `users`(`login`, `password`) VALUES ('$login', '$password')");
             header('Location: goodjob.php');
             exit();
         }
