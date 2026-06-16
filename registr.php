@@ -3,17 +3,23 @@ session_start();
 require_once __DIR__ . '/config.php';
 $connection = getDBConnection();
 
-$login = $_POST['login'];
-$password = $_POST['password'];
+$error_message = '';
 
-if(isset($_POST['registration'])) {
-    $check_user = mysqli_query($connection, "SELECT * FROM `Users` WHERE `Login` = '$login'");
-    if (mysqli_num_rows($check_user) > 0) {
-        $error_message = 'Такой пользователь уже существует! <a href="registr.php">Назад</a>';
+if (isset($_POST['registration'])) {
+    if (!empty($_POST['login']) && !empty($_POST['password'])) {
+        $login = mysqli_real_escape_string($connection, $_POST['login']);
+        $password = mysqli_real_escape_string($connection, $_POST['password']);
+        
+        $check_user = mysqli_query($connection, "SELECT * FROM `Users` WHERE `Login` = '$login'");
+        if (mysqli_num_rows($check_user) > 0) {
+            $error_message = 'Такой пользователь уже существует! <a href="registr.php">Назад</a>';
+        } else {
+            mysqli_query($connection, "INSERT INTO `Users`(Login, Password) VALUES ('$login', '$password')");
+            header('Location: goodjob.php');
+            exit();
+        }
     } else {
-        mysqli_query($connection, "INSERT INTO `Users`(Login, Password) VALUES ('$login', '$password')");
-        header('Location: goodjob.php');
-        exit();
+        $error_message = 'Заполните все поля!';
     }
 }
 

@@ -3,30 +3,30 @@ session_start();
 require_once __DIR__ . '/config.php';
 $connection = getDBConnection();
 
-$name = mysqli_real_escape_string($connection, $_POST['Login']);
-$password = mysqli_real_escape_string($connection, $_POST['Password']);
-
 $error_message = '';
 
-if(isset($_POST['Login'])) {
-    $_SESSION['last_login'] = $_POST['Login'];
-}
-
-if(isset($_POST['autorisation'])) {
-    $check_user = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name'");
-    if (mysqli_num_rows($check_user) > 0) {
-        $result = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name' AND `password` = '$password'");
-        if (mysqli_num_rows($result) > 0) {
-            $user = mysqli_fetch_assoc($result);
-            $_SESSION['user_id'] = $user['id'];        
-            $_SESSION['user_name'] = $user['login'];   
-            header('Location: cabinet.php');
-            exit();
+if (isset($_POST['autorisation'])) {
+    if (!empty($_POST['Login']) && !empty($_POST['Password'])) {
+        $name = mysqli_real_escape_string($connection, $_POST['Login']);
+        $password = mysqli_real_escape_string($connection, $_POST['Password']);
+        
+        $check_user = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name'");
+        if (mysqli_num_rows($check_user) > 0) {
+            $result = mysqli_query($connection, "SELECT * FROM `users` WHERE `login` = '$name' AND `password` = '$password'");
+            if (mysqli_num_rows($result) > 0) {
+                $user = mysqli_fetch_assoc($result);
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['login'];
+                header('Location: cabinet.php');
+                exit();
+            } else {
+                $error_message = 'Неверный пароль! <a href="adminstr.php">Назад</a>';
+            }
         } else {
-            $error_message = 'Неверный пароль! <a href="adminstr.php">Назад</a>';
+            $error_message = 'Пользователь не найден! <a href="registr.php">Зарегистрироваться</a>';
         }
     } else {
-        $error_message = 'Пользователь не найден! <a href="registr.php">Зарегистрироваться</a>';
+        $error_message = 'Заполните все поля!';
     }
 }
 ?>
